@@ -55,6 +55,18 @@ const showLocals = async (frameId = 0) => {
   const bp = await send('setBreakpoints', { source: { path: src }, breakpoints: [{ line: +(process.env.BP_LINE || 254) }] });
   console.log('breakpoints', JSON.stringify(bp.breakpoints));
   await send('configurationDone');
+  if (process.env.PROBE) {
+    await sleep(20000);
+    for (let i = 0; i < 6; i++) { const r = await send('evaluate', { expression: '!format %04X [reg PC]', context: 'repl' }); console.log('  PC', r.result); await sleep(700); }
+    for (const q of ['machine_info config_name', 'peek 0x2D', 'peek 0x2D 0 0', 'debug read_block {Sony HB-75P bios} 0x2D 1', 'machine_info version']) console.log('  q:', q, '=>', (await send('evaluate', { expression: '!' + q, context: 'repl' }).catch(e => ({ result: 'ERR ' + e.message.slice(0, 60) }))).result);
+    console.log('  bps:', (await send('evaluate', { expression: '!debug breakpoint list', context: 'repl' })).result.split(String.fromCharCode(10)).join(' | '));
+    console.log('  machine:', (await send('evaluate', { expression: '!machine_info type', context: 'repl' }).catch(e => ({ result: e.message }))).result);
+    await send('evaluate', { expression: '!screenshot -raw -doublesize ' + (process.env.SHOT || 'C:/Windows/Temp/shot.png'), context: 'repl' }).catch((e) => console.log('shot err', e.message)); await sleep(1500);
+    const hx = (await send('evaluate', { expression: '!binary scan [debug read_block VRAM 0 960] H* x; set x', context: 'repl' })).result.trim();
+    const txt = Buffer.from(hx, 'hex').toString('latin1').replace(/[^ -~]/g, '.');
+    for (let r = 0; r < 24; r++) { const l = txt.slice(r * 40, r * 40 + 40); if (/[A-Za-z]/.test(l)) console.log('  screen:', l); }
+    await send('disconnect', {}); console.log('PROBE-DONE'); setTimeout(() => process.exit(0), 500); return;
+  }
   const ev = await waitEvent('stopped', 120000, true);
   console.log('stopped:', ev.body.reason);
   await where('hit');

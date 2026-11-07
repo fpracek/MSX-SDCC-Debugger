@@ -41,15 +41,20 @@ type Ref =
 
 const DEFAULT_OPENMSX = 'openmsx.exe';
 
-function detectTarget(rom: string, projectDir?: string): string {
+function projectSetting(rom: string, projectDir: string | undefined, key: string): string {
   for (const d of [projectDir, path.resolve(path.dirname(rom), '..')]) {
     if (!d) continue;
     const f = path.join(d, 'project_config.js');
     if (!fs.existsSync(f)) continue;
-    const m = [...fs.readFileSync(f, 'utf8').matchAll(/^\s*Target\s*=\s*"(\w+)"/gm)];
+    const m = [...fs.readFileSync(f, 'utf8').matchAll(new RegExp('^\\s*' + key + '\\s*=\\s*"([^"]*)"', 'gm'))];
     if (m.length) return m[m.length - 1][1];
   }
   return '';
+}
+function detectTarget(rom: string, projectDir?: string): string { return projectSetting(rom, projectDir, 'Target'); }
+function machineFor(rom: string, projectDir?: string): string {
+  const m = projectSetting(rom, projectDir, 'Machine');
+  return ({ '1': 'Sony_HB-55P', '2': 'Philips_NMS_8250', '2+': 'Panasonic_FS-A1WSX', '3': 'Panasonic_FS-A1GT' } as Record<string, string>)[m] ?? 'Sony_HB-55P';
 }
 function segSizeFor(target: string, di: DebugInfo): number {
   if (/ASCII16|NEO16/.test(target)) return 0x4000;
@@ -57,7 +62,7 @@ function segSizeFor(target: string, di: DebugInfo): number {
   return di.bankHi - di.bankLo > 0x2000 ? 0x4000 : 0x2000;
 }
 function romTypeFor(target: string): string | undefined {
-  const t: Record<string, string> = { ROM_ASCII8: 'ASCII8', ROM_ASCII16: 'ASCII16', ROM_KONAMI: 'Konami', ROM_KONAMI_SCC: 'KonamiSCC', ROM_NEO8: 'NEO8', ROM_NEO16: 'NEO16' };
+  const t: Record<string, string> = { ROM_ASCII8: 'ASCII8', ROM_ASCII16: 'ASCII16', ROM_KONAMI: 'Konami', ROM_KONAMI_SCC: 'KonamiSCC', ROM_NEO8: 'NEO8', ROM_NEO16: 'NEO16', ROM_YAMANOOTO: 'Yamanooto' };
   return t[target];
 }
 const THREAD = 1;
@@ -124,6 +129,10 @@ export class MsxSession extends DebugSession {
       if (this.di.banked) {
         this.segSize = segSizeFor(target, this.di);
         this.di.bankLo &= ~(this.segSize - 1); this.di.bankHi = this.di.bankLo + this.segSize;   // the whole switchable page
+        // MSXgl keeps one shadow variable per bank: _g_Bank<K>Segment, K = index of the window (_g_CurrentSegment = BANKED bank)
+        const k = (this.di.bankLo - 0x4000) / this.segSize;
+        const va = this.di.symAddr('_g_Bank' + k + 'Segment');
+        if (va) this.di.segAddr = va;
         this.romBuf = fs.readFileSync(rom);
         romType = romType ?? romTypeFor(target);
         this.log(`Banked ROM (${target || 'unknown target'}): segment size 0x${this.segSize.toString(16)}, switchable window 0x${this.di.bankLo.toString(16)}-0x${this.di.bankHi.toString(16)}, current segment variable at 0x${this.di.segAddr.toString(16)}.`);
@@ -131,7 +140,7 @@ export class MsxSession extends DebugSession {
       const files = new Set<string>([...this.srcMap.keys(), (this.di.module + '.c').toLowerCase()]);
       this.msx = new OpenMsx({
         openmsx: args.openmsx || DEFAULT_OPENMSX,
-        machine: args.machine || 'Sony_HB-55P',
+        machine: args.machine || machineFor(rom, args.projectDir),
         rom,
         romType,
         extraArgs: args.extraArgs ?? [],
@@ -140,6 +149,7 @@ export class MsxSession extends DebugSession {
       this.msx.on('exit', () => this.sendEvent(new TerminatedEvent()));
       this.msx.on('break', (pc: number) => this.onAsyncBreak(pc));
       await this.msx.start();
+      this.log(`openMSX: machine ${args.machine || machineFor(rom, args.projectDir)}${romType ? ', romtype ' + romType : ''}.`);
       this.log(`openMSX started (${this.di.funcs.length} functions, ${this.di.lines.length} line entries, mode ${this.fullMode ? 'full' : 'normal'}).`);
       this.sendResponse(resp);
       this.sendEvent(new InitializedEvent());

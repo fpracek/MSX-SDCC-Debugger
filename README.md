@@ -13,7 +13,7 @@ Step-by-step debugging of MSXgl / SDCC C programs, running in a real openMSX win
 | mode | what it does | variables |
 |---|---|---|
 | `normal` | uses your build as is (same code, same timing) | ~86 % of the locals are on the stack and shown. Variables SDCC keeps in a register show `<in register C: not reliable…>`, eliminated ones `<optimized out>` |
-| `full` | builds a COPY (`<project>__dbgfull`) with automatic `volatile` on every local / parameter that would live in a register, then debugs that build | every variable you declared is readable (the remaining ones come from MSXgl `inline` header functions). Code is ~3 % bigger and a bit slower |
+| `full` | builds a COPY (`<drive>:\msxdbg\<project>`) with automatic `volatile` on every local / parameter that would live in a register, then debugs that build | every variable you declared is readable (the remaining ones come from MSXgl `inline` header functions). Code is ~3 % bigger and a bit slower |
 
 Your sources are never modified: `full` mode works on the copy; breakpoints and stepping use your original
 files (line numbers are preserved).
@@ -29,7 +29,7 @@ Addresses of banked segments in the `.cdb` are `segment<<16 | cpu address`. The 
 currently mapped from MSXgl's `_g_CurrentSegment` variable, so breakpoints in bank N only fire while bank N is mapped,
 the call stack follows `__banked` calls through the `___sdcc_bcall_ehl` trampoline, and stepping works inside any bank.
 The target is read from `project_config.js` and openMSX gets the matching `-romtype` (ASCII8, ASCII16, Konami,
-KonamiSCC, NEO8, NEO16); for other mappers (Yamanooto, custom) pass the cartridge arguments in `extraArgs`.
+KonamiSCC, NEO8, NEO16, Yamanooto); for custom mappers pass the cartridge arguments in `extraArgs`.
 In `full` mode every `<module>.c` of the project is processed, including the `<name>_sN_bM.c` segment files.
 
 ## launch.json

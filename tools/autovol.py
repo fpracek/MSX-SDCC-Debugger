@@ -199,6 +199,8 @@ def build_all():
         text, pdone = shadow_params(text, ps)
         open(SRC, "w", encoding="latin-1", newline="").write(text)
     log = build()
+    if not os.path.exists(os.path.join(proj, "out", name + ".cdb")) or "Compile error" in log or "unable to rename" in log:
+        log = build()          # file-sync tools (Dropbox) sometimes break sdar's rename: retry once
     open(os.path.join(proj, "autovol_build.log"), "w", encoding="utf-8").write(log)
     errs = [l for l in log.split(chr(10)) if re.search(r"error|Error", l) and "previous definition" not in l and "redefined" not in l]
     use(mods[0])

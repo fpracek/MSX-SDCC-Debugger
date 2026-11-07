@@ -39,6 +39,8 @@ export class DebugInfo {
   structs = new Map<string, StructField[]>();
   symAddrs: number[] = [];                  // sorted code/data symbol addresses (from .noi)
   symNames = new Map<number, string>();     // addr -> name
+  private symByName = new Map<string, number>();
+  symAddr(name: string): number | undefined { return this.symByName.get(name); }
   segAddr = 0;                              // RAM address of _g_CurrentSegment (banked ROMs)
   bankLo = 0; bankHi = 0;                   // CPU address window of the switchable page
   private linesByFile = new Map<string, LineEntry[]>();
@@ -181,6 +183,7 @@ export class DebugInfo {
       const n = m[1];
       if (!n.startsWith('_') || /^(l__|s__)/.test(n)) continue;
       set.add(a);
+      this.symByName.set(n, a);
       if (n === '_g_CurrentSegment') this.segAddr = a;
       if (!this.symNames.has(a)) this.symNames.set(a, n.slice(1));
     }

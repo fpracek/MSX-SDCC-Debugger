@@ -72,12 +72,13 @@ debugger cannot read those reliably. In this mode:
 Set `"showRegisterValues": true` to also see register-held values; they can be stale after a `call`.
 
 ### 5.2 `full`
-Builds a **copy** of the project (`<projectDir>__dbgfull`, next to the original) in which every local variable and
+Builds a **copy** of the project (`<drive>:\msxdbg\<project>`, on the same drive as the project) in which every local variable and
 parameter that SDCC would keep in a register (or drop) is declared `volatile`. SDCC then allocates them on the stack and the
 debugger can always read them. Your sources are **never modified**; breakpoints and stepping use your original files
 (line numbers are preserved).
 
-* the first launch compiles 3–5 times (about 1–2 minutes); later launches reuse the copy until a source changes;
+* the first launch compiles 3–5 times (about 1–2 minutes for a small project, **10–20 minutes for a large one with 60+ modules**, which is limited to 3 builds); later launches reuse the build until a source changes, and after an edit the learned list of variables is kept so only 1–2 builds are needed;
+* the copy is built in `<drive>:\msxdbg\<project>`: it must be on the **same drive as MSXgl** (the MSXgl build moves files between the engine and the project) and its path must be **short** (SDCC's link command line is limited to 8191 characters on Windows). Set `workDir` to use another folder; keep it out of Dropbox/OneDrive (file-sync tools break the build);
 * typical cost: code ≈ 3 % larger and a little slower — use `normal` when timing matters;
 * what remains unreadable are variables of MSXgl `inline` header functions (`min`, `max`, `flag`, …) that you did not write.
 
@@ -133,10 +134,11 @@ Supported: `ROM_ASCII8`, `ROM_ASCII16`, `ROM_KONAMI`, `ROM_KONAMI_SCC`, `ROM_NEO
 | `cdb` | `<rom>.cdb` | debug info file |
 | `debugMode` | `normal` | `normal` or `full` |
 | `projectDir` | — | project folder; **required for `full`** |
+| `workDir` | `<drive>:\msxdbg\<project>` | folder where `full` mode builds its copy (same drive as MSXgl, short path) |
 | `module` | rom file name | main C module name without `.c` |
 | `sourceRoot` | project folder | where the `.c/.h` sources are searched (depth ≤ 4) |
 | `openmsx` | setting | path of `openmsx.exe` |
-| `machine` | `Sony_HB-55P` | openMSX machine id |
+| `machine` | from `Machine` in project_config.js (1→Sony_HB-55P, 2→Philips_NMS_8250, 2+→Panasonic_FS-A1WSX, 3→Panasonic_FS-A1GT) | openMSX machine id |
 | `extraArgs` | `[]` | extra openMSX arguments, e.g. `["-ext","msxdos2"]` |
 | `romType` | auto | openMSX `-romtype` |
 | `target` | auto | MSXgl Target (read from `project_config.js`) |
@@ -170,7 +172,7 @@ Commands (Ctrl+Shift+P): *MSXgl: Debug C (normal)* and *MSXgl: Debug C (full, al
 | breakpoint never hits | the code path is not executed; in mapper ROMs check the bank is the one that runs |
 | `openMSX closed (code=…)` mid-session | the emulator was closed or killed by another tool |
 | variables show `<in register …>` | normal mode: use `full` mode |
-| full mode fails | read `<projectDir>__dbgfull/autovol_build.log`; the project must build with `Debug = true;`; check Python |
+| full mode fails | read `<drive>:\msxdbg\<project>utovol_build.log`; the project must build with `Debug = true;`; check Python |
 | full mode "BUILD-ERROR" | the copy does not compile — usually the same error the normal build shows |
 | wrong line / values after rebuilding | rebuild first: the `.cdb` must match the ROM that is loaded |
 
@@ -178,6 +180,9 @@ Environment variable `MSXDBG_TRACE=1` prints the unwinder's frame analysis in th
 
 ## 12. Uninstall / cleanup
 
-Uninstall from the Extensions view. You may delete the `<project>__dbgfull` folders created by full mode.
+Uninstall from the Extensions view. You may delete the `<drive>:\msxdbg` folder created by full mode.
 
 Source and issues: https://github.com/fpracek/MSX-SDCC-Debugger
+
+## Note on machines
+`Machine` in `project_config.js` selects the openMSX machine: `1` → `Sony_HB-55P` (MSX1), `2` → `Philips_NMS_8250` (MSX2), `2+` → `Panasonic_FS-A1WSX`, `3` → `Panasonic_FS-A1GT`. Note that Sony_HB-75P is an MSX1. Override with `machine` if you use another set of system ROMs.

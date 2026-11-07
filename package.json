@@ -2,7 +2,7 @@
   "name": "msx-sdcc-debugger",
   "displayName": "MSX-SDCC-Debugger",
   "description": "Step-by-step C debugger for MSX programs built with SDCC / MSXgl, running in openMSX (flat and mapper ROMs).",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "fpracek",
   "engines": {
     "vscode": "^1.80.0"
@@ -87,6 +87,10 @@
               "stopOnEntry": {
                 "type": "boolean",
                 "default": false
+              },
+              "workDir": {
+                "type": "string",
+                "description": "Where full mode builds its volatile copy (default <drive>:\\msxdbg\\<project>: same drive as MSXgl, short path, outside Dropbox)."
               }
             }
           }
