@@ -56,3 +56,6 @@ Build the project first (task / `build.bat`), then press F5. In `full` mode the 
 openMSX is started with a small Tcl script (`-script`) that polls a temporary folder for command files and writes
 reply files. No network socket is opened. Stepping is done by single-stepping the Z80 inside openMSX; calls are
 stepped over with a temporary breakpoint at the return address.
+
+## Manual
+See [MANUAL.md](MANUAL.md) for the full user manual.
