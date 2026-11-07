@@ -2,7 +2,7 @@
   "name": "msx-sdcc-debugger",
   "displayName": "MSX-SDCC-Debugger",
   "description": "Step-by-step C debugger for MSX programs built with SDCC / MSXgl, running in openMSX (flat and mapper ROMs).",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "fpracek",
   "engines": {
     "vscode": "^1.80.0"

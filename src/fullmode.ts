@@ -3,7 +3,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 
 export interface FullCfg {
   rom: string;
@@ -13,6 +13,14 @@ export interface FullCfg {
   pythonPath?: string;
   engineBuild?: string;
   workDir?: string;      // where the volatile copy is built (default: system temp, outside Dropbox/OneDrive)
+}
+
+
+/** The project folders are often marked read-only (copied from Dropbox etc.); Windows then refuses to delete them. */
+function clearReadOnly(dir: string) {
+  if (process.platform !== 'win32' || !fs.existsSync(dir)) return;
+  spawnSync('attrib', ['-R', path.join(dir, '*'), '/S', '/D'], { windowsHide: true });
+  spawnSync('attrib', ['-R', dir, '/D'], { windowsHide: true });
 }
 
 function newestMtime(dir: string): number {
@@ -61,11 +69,13 @@ export async function prepareFullBuild(cfg: FullCfg, log: (m: string) => void): 
   if (fs.existsSync(copy)) {
     for (const f of fs.readdirSync(copy)) if (/^autovol_(state|params)_.*\.json$/.test(f)) keep.push({ name: f, data: fs.readFileSync(path.join(copy, f), 'utf8') });
   }
+  clearReadOnly(copy);
   fs.rmSync(copy, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
   fs.cpSync(proj, copy, {
     recursive: true,
     filter: (s) => !/[\\/](out|\.git|\.vscode|node_modules)([\\/]|$)|autovol_[^\\/]*$|\.orig$/i.test(s.slice(proj.length)),
   });
+  clearReadOnly(copy);
   for (const k of keep) fs.writeFileSync(path.join(copy, k.name), k.data);
   const cfgFile = path.join(copy, 'project_config.js');
   if (fs.existsSync(cfgFile)) {
