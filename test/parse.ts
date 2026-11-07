@@ -1,0 +1,11 @@
+import { DebugInfo } from '../src/cdb';
+const di = DebugInfo.load(process.argv[2]);
+console.log('module', di.module, 'funcs', di.funcs.length, 'lines', di.lines.length, 'locals', di.vars.length, 'globals', di.globals.length, 'structs', di.structs.size, 'sym', di.symAddrs.length);
+const f = di.funcByNameGet('PrintTileAt')!;
+console.log('PrintTileAt', f, di.lineAt(f.start + 20));
+console.log(di.localsFor('PrintTileAt').map(v => `${v.name}:${di.typeName(v.type)}:${v.where}${v.offset ?? ''}`).join(' | '));
+const g = di.globals.find(g => g.name === 'g_Maze')!;
+console.log('g_Maze', g.addr!.toString(16), di.typeName(g.type), g.type.size, di.structFields(g.type.struct!).slice(0, 4).map(x => x.name + '@' + x.offset + ':' + di.typeName(x.type)));
+console.log('addrsForLine', di.addrsForLine('E:/x/sampradv.c', 254));
+console.log('symbolAt', di.symbolAt(di.funcByNameGet('GameLoop')!.start + 3), di.funcAt(0x4010));
+console.log(di.staticTcl(new Set(['sampradv.c'])).length);

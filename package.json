@@ -1,0 +1,165 @@
+{
+  "name": "msx-sdcc-debugger",
+  "displayName": "MSX-SDCC-Debugger",
+  "description": "Step-by-step C debugger for MSX programs built with SDCC / MSXgl, running in openMSX (flat and mapper ROMs).",
+  "version": "0.2.0",
+  "publisher": "fpracek",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Debuggers"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onDebug",
+    "onCommand:msxgl.debugNormal",
+    "onCommand:msxgl.debugFull"
+  ],
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --platform=node --external:vscode --outfile=dist/extension.js --sourcemap && esbuild src/adapterMain.ts --bundle --platform=node --outfile=dist/adapterMain.js --sourcemap",
+    "typecheck": "tsc --noEmit",
+    "package": "npm run build && vsce package"
+  },
+  "contributes": {
+    "breakpoints": [
+      {
+        "language": "c"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "msxgl",
+        "label": "MSX-SDCC-Debugger (openMSX)",
+        "languages": [
+          "c"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "rom"
+            ],
+            "properties": {
+              "rom": {
+                "type": "string",
+                "description": "Path to the .rom built by MSXgl (the .cdb must be next to it)."
+              },
+              "cdb": {
+                "type": "string",
+                "description": "Path to the .cdb (default: same name as the rom)."
+              },
+              "openmsx": {
+                "type": "string",
+                "description": "Path to openmsx.exe."
+              },
+              "machine": {
+                "type": "string",
+                "default": "Sony_HB-55P"
+              },
+              "extraArgs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "sourceRoot": {
+                "type": "string",
+                "description": "Folder containing the C sources (default: folder of the project)."
+              },
+              "debugMode": {
+                "type": "string",
+                "enum": [
+                  "normal",
+                  "full"
+                ],
+                "default": "normal",
+                "description": "normal = use the build as is (register variables flagged). full = rebuild a copy with automatic volatile so every local lives on the stack."
+              },
+              "projectDir": {
+                "type": "string",
+                "description": "MSXgl project folder (needed for debugMode full)."
+              },
+              "module": {
+                "type": "string",
+                "description": "Main C module name without .c (default: project folder name)."
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "msxgl",
+            "request": "launch",
+            "name": "MSXgl: debug (normal)",
+            "rom": "${workspaceFolder}/out/${workspaceFolderBasename}.rom",
+            "debugMode": "normal"
+          },
+          {
+            "type": "msxgl",
+            "request": "launch",
+            "name": "MSXgl: debug (full, volatile)",
+            "rom": "${workspaceFolder}/out/${workspaceFolderBasename}.rom",
+            "debugMode": "full",
+            "projectDir": "${workspaceFolder}"
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "msxgl.debugNormal",
+        "title": "MSXgl: Debug C (normal)"
+      },
+      {
+        "command": "msxgl.debugFull",
+        "title": "MSXgl: Debug C (full, all locals)"
+      }
+    ],
+    "configuration": {
+      "title": "MSXgl Debugger",
+      "properties": {
+        "msxglDebugger.openmsxPath": {
+          "type": "string",
+          "default": "openmsx.exe",
+          "description": "Path to openmsx.exe"
+        },
+        "msxglDebugger.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Python used by full mode"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "@vscode/debugadapter": "^1.65.0",
+    "@vscode/debugprotocol": "^1.65.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.21.0",
+    "typescript": "^5.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fpracek/MSX-SDCC-Debugger.git"
+  },
+  "homepage": "https://github.com/fpracek/MSX-SDCC-Debugger",
+  "bugs": {
+    "url": "https://github.com/fpracek/MSX-SDCC-Debugger/issues"
+  },
+  "keywords": [
+    "msx",
+    "sdcc",
+    "msxgl",
+    "openmsx",
+    "debugger",
+    "z80"
+  ],
+  "license": "SEE LICENSE IN LICENSE"
+}
