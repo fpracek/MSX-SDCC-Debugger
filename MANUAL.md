@@ -80,6 +80,7 @@ debugger can always read them. Your sources are **never modified**; breakpoints 
 * the first launch compiles 3–5 times (about 1–2 minutes for a small project, **10–20 minutes for a large one with 60+ modules**, which is limited to 3 builds); later launches reuse the build until a source changes, and after an edit the learned list of variables is kept so only 1–2 builds are needed;
 * the copy is built in `<drive>:\msxdbg\<project>`: it must be on the **same drive as MSXgl** (the MSXgl build moves files between the engine and the project) and its path must be **short** (SDCC's link command line is limited to 8191 characters on Windows). Set `workDir` to use another folder; keep it out of Dropbox/OneDrive (file-sync tools break the build);
 * typical cost: code ≈ 3 % larger and a little slower — use `normal` when timing matters;
+* in banked builds each segment has a fixed size (8 KB for Yamanooto/ASCII8/Konami, 16 KB for ASCII16/NEO16): `volatile` makes code bigger, so if a segment would overflow, the tool keeps `volatile` on only part of the variables of that module (a message tells which). Variables of that module may then show `<in register …>`;
 * what remains unreadable are variables of MSXgl `inline` header functions (`min`, `max`, `flag`, …) that you did not write.
 
 ## 6. Using the debugger

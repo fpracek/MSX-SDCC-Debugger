@@ -184,6 +184,27 @@ def origin(f, v):
 import shutil
 mods = [os.path.splitext(f)[0] for f in sorted(os.listdir(proj)) if f.endswith(".c")]
 maxit = int(sys.argv[sys.argv.index("--iterate") + 1]) if "--iterate" in sys.argv else 6
+segsize = int(sys.argv[sys.argv.index("--seg-size") + 1]) if "--seg-size" in sys.argv else 0
+main_name = sys.argv[2]
+base_size = {}
+capped = set()
+if segsize: maxit += 3          # room for the segment-overflow back-off
+
+def seg_sizes():
+    mp = os.path.join(proj, "out", main_name + ".map")
+    out = {}
+    if not os.path.exists(mp): return out
+    for ln in open(mp, encoding="latin-1"):
+        m = re.match(r"\s*_SEG(\d+)\s+[0-9A-Fa-f]{8}\s+([0-9A-Fa-f]{8})", ln)
+        if m: out[int(m.group(1))] = max(out.get(int(m.group(1)), 0), int(m.group(2), 16))
+    return out
+
+def overflow_segments():
+    if not segsize: return {}
+    return {n: z for n, z in seg_sizes().items() if z > segsize}
+
+def modules_of_segment(n):
+    return [m for m in mods if re.search(r"_s%d_b\d+$" % n, m, re.I)]
 S = {}
 for m in mods:
     use(m)
@@ -202,17 +223,40 @@ def build_all():
     if not os.path.exists(os.path.join(proj, "out", name + ".cdb")) or "Compile error" in log or "unable to rename" in log:
         log = build()          # file-sync tools (Dropbox) sometimes break sdar's rename: retry once
     open(os.path.join(proj, "autovol_build.log"), "w", encoding="utf-8").write(log)
+    ovf = overflow_segments()
+    if ovf: return ovf
     errs = [l for l in log.split(chr(10)) if re.search(r"error|Error", l) and "previous definition" not in l and "redefined" not in l]
     use(mods[0])
     if errs or not os.path.exists(os.path.join(proj, "out", name + ".cdb")):
         print("BUILD-ERROR")
         for l in errs[:12]: print("  ", l.strip()[:200])
         sys.exit(2)
+    return {}
+
+def shrink(ovf):
+    """a banked segment grew past its size: keep only a fraction of the volatile variables in its modules"""
+    for n, z in sorted(ovf.items()):
+        base = base_size.get(n, 0)
+        frac = max(0.0, (segsize - base) / float(max(1, z - base))) * 0.85
+        for m in modules_of_segment(n):
+            st, ps = S[m]
+            sl, pl = sorted(st), sorted(ps)
+            S[m] = (set(sl[:int(len(sl) * frac)]), set(pl[:int(len(pl) * frac)]))
+            capped.add(m)
+            use(m); save_state(S[m][0]); json.dump(sorted(S[m][1]), open(PSTATE, "w"))
+        print("  segment %d would be %d bytes (limit %d): volatile reduced to %d%% in %s" % (n, z, segsize, int(frac * 100), ", ".join(modules_of_segment(n)) or "?"), flush=True)
+
+last_ovf = {}
 
 left = total = 0
 for it in range(maxit + 1):
     print("iteration %d: build (%s volatile)..." % (it, ", ".join("%s:%d+%d" % (m, len(S[m][0]), len(S[m][1])) for m in mods)), flush=True)
-    build_all()
+    ovf = build_all()
+    if it == 0 and not ovf and segsize: base_size = seg_sizes()
+    last_ovf = ovf
+    if ovf:
+        shrink(ovf)
+        continue
     left = total = nnew = 0
     for m in mods:
         use(m)
@@ -225,6 +269,10 @@ for it in range(maxit + 1):
         fixable = {x for x in bad if origin(*x) == "local"}
         pfixable = {x for x in pbad if origin(*x) == "param"}
         new, newp = fixable - state, pfixable - pstate
+        if m in capped:
+            left += sum(1 for (f, v, vid), (k, sz, isp) in cl.items() if k in ("reg", "nopos") and (f, v) not in shadowed)
+            total += len(cl)
+            continue
         left += sum(1 for (f, v, vid), (k, sz, isp) in cl.items() if k in ("reg", "nopos") and (f, v) not in shadowed)
         total += len(cl)
         nnew += len(new) + len(newp)
@@ -232,4 +280,13 @@ for it in range(maxit + 1):
         save_state(state); json.dump(sorted(pstate), open(PSTATE, "w"))
     print("  variables: %d, unreliable: %d, new volatile candidates: %d" % (total, left, nnew), flush=True)
     if not nnew: break
+tries = 0
+while last_ovf and tries < 4:          # the last build overflowed a segment: back off and rebuild until it fits
+    tries += 1
+    print("final build %d (segment overflow)..." % tries, flush=True)
+    last_ovf = build_all()
+    if last_ovf: shrink(last_ovf)
+if last_ovf:
+    print("BUILD-ERROR segment overflow could not be resolved: " + str(last_ovf))
+    sys.exit(2)
 print("DONE unreliable_left=%d total=%d" % (left, total))

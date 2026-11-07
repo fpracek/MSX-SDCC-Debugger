@@ -83,10 +83,16 @@ export async function prepareFullBuild(cfg: FullCfg, log: (m: string) => void): 
     t += '\n// --- added by msxgl-debugger (full mode) ---\nDebug = true;\nDoRun = false;\n';
     fs.writeFileSync(cfgFile, t);
   }
+  // code of a banked build must stay within one segment: volatile adds code, so autovol backs off when a segment overflows
+  let segSize = 0;
+  try {
+    const t = [...fs.readFileSync(path.join(proj, 'project_config.js'), 'utf8').matchAll(/^\s*Target\s*=\s*"(\w+)"/gm)].pop()?.[1] ?? '';
+    segSize = /ASCII16|NEO16/.test(t) ? 0x4000 : /ASCII8|KONAMI|NEO8|YAMANOOTO/.test(t) ? 0x2000 : 0;
+  } catch { /* no config */ }
   const nModules = fs.readdirSync(copy).filter((f) => f.endsWith('.c')).length;
   const script = cfg.autovolScript ?? path.join(__dirname, '..', 'tools', 'autovol.py');
   const engineBuild = cfg.engineBuild ?? path.resolve(proj, '..', '..', 'engine', 'script', 'js', 'build.js');
-  const code = await run(cfg.pythonPath ?? 'python', [script, copy, mod, '--iterate', String(nModules > 20 ? 2 : 6), '--engine-build', engineBuild], copy, log);
+  const code = await run(cfg.pythonPath ?? 'python', [script, copy, mod, '--iterate', String(nModules > 20 ? 2 : 6), '--engine-build', engineBuild, '--seg-size', String(segSize)], copy, log);
   if (code !== 0) throw new Error(`autovol failed (exit ${code}); see ${path.join(copy, 'autovol_build.log')}. If the log ends with "Link error" and the project has many modules, the Windows command line (8191 chars) is exceeded: set a shorter "workDir" (e.g. C:/msxdbg/name).`);
   if (!fs.existsSync(outRom)) throw new Error('the full-mode build did not produce ' + outRom);
   fs.writeFileSync(stamp, new Date().toISOString());
