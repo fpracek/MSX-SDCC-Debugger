@@ -1,6 +1,6 @@
 # MSX-SDCC-Debugger — User Manual
 
-Version 0.2.0 · VS Code extension for debugging C programs built with **SDCC** (typically through **MSXgl**) while they run in **openMSX**.
+Version 0.2.4 · VS Code extension for debugging C programs built with **SDCC** (typically through **MSXgl**) while they run in **openMSX**.
 
 ## 1. What it is
 
@@ -168,7 +168,7 @@ Commands (Ctrl+Shift+P): *MSXgl: Debug C (normal)* and *MSXgl: Debug C (full, al
 | Symptom | Cause / fix |
 |---|---|
 | `.cdb not found` | build with `Debug = true;`; check `rom` path |
-| `openMSX did not become ready` | wrong `openmsxPath`, or openMSX failed to start (try the same arguments by hand) |
+| `cannot start openMSX` / `did not become ready` | openMSX not found: set `msxglDebugger.openmsxPath` to the full path of `openmsx.exe` (PATH and `Program FilesopenMSX` are searched automatically) |
 | breakpoint is grey / "no code at this line" | the line has no code, or the file is not part of the build; rebuild |
 | breakpoint never hits | the code path is not executed; in mapper ROMs check the bank is the one that runs |
 | `openMSX closed (code=…)` mid-session | the emulator was closed or killed by another tool |

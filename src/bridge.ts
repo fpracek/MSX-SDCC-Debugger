@@ -102,9 +102,11 @@ export class OpenMsx extends EventEmitter {
     const args = ['-machine', this.opts.machine, '-cart', this.opts.rom, ...(this.opts.romType ? ['-romtype', this.opts.romType] : []), '-script', tcl, ...this.opts.extraArgs];
     this.proc = spawn(this.opts.openmsx, args, { cwd: path.dirname(this.opts.openmsx), windowsHide: false });
     this.proc.on('exit', (code, sig) => { this.exitInfo = `code=${code} signal=${sig}`; this.exited = true; this.stopTimer(); this.emit('exit'); });
-    this.proc.on('error', (e) => this.emit('error', e));
+    let spawnErr = '';
+    this.proc.on('error', (e) => { spawnErr = e.message; this.exited = true; this.stopTimer(); });
     const t0 = Date.now();
     while (!fs.existsSync(path.join(this.dir, 'ready'))) {
+      if (spawnErr) throw new Error(`cannot start openMSX (${this.opts.openmsx}): ${spawnErr}. Set "msxglDebugger.openmsxPath" (or "openmsx" in launch.json) to the full path of openmsx.exe.`);
       if (this.exited) throw new Error('openMSX closed during start-up (' + this.exitInfo + ')');
       if (Date.now() - t0 > timeoutMs) throw new Error('openMSX did not become ready');
       await new Promise((r) => setTimeout(r, 50));
